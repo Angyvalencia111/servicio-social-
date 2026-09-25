@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control y Monitoreo</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js para la gráfica interactiva -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome para íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e1e1e;
+            color: #333333;
+        }
+
+        /* Estilo de focos apagados */
+        .indicator {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #555;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .indicator-green-off {
+            background-color: #1a4325;
+        }
+
+        .indicator-red-off {
+            background-color: #4a1515;
+        }
+
+        /* Estilo de focos encendidos con resplandor */
+        .indicator-green-on {
+            background-color: #22c55e;
+            box-shadow: 0 0 15px #22c55e, inset 0 1px 3px rgba(255,255,255,0.8);
+            border-color: #16a34a;
+        }
+
+        .indicator-red-on {
+            background-color: #ef4444;
+            box-shadow: 0 0 15px #ef4444, inset 0 1px 3px rgba(255,255,255,0.8);
+            border-color: #dc2626;
+        }
+
+        /* Animación suave para la aparición del panel */
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-4xl bg-white border-2 border-gray-800 rounded-lg shadow-2xl overflow-hidden my-auto">
+        
+        <!-- Header superior con nombre y logo -->
+        <div class="bg-gray-800 text-white py-4 px-6 text-center text-xl font-bold tracking-wide uppercase border-b-2 border-gray-900 flex items-center justify-center gap-3">
+            <i class="fa-solid fa-microchip text-emerald-400"></i>
+            <span>nombre del proyecto y logo</span>
+        </div>
+
+        <!-- Área de botones y focos -->
+        <div class="p-8">
+            <div class="flex justify-center items-center gap-12 sm:gap-20 my-4">
+                
+                <!-- Sección Botón STAR -->
+                <div class="flex flex-col items-center gap-3">
+                    <!-- Foco Verde -->
+                    <div id="green-light" class="indicator indicator-green-off"></div>
+                    <!-- Botón STAR -->
+                    <button id="btn-start" onclick="startProcess()" class="bg-green-500 hover:bg-green-600 active:scale-95 text-white font-black text-xl px-8 py-3 rounded-md shadow-md border-2 border-green-700 transition-all cursor-pointer min-w-[120px] text-center">
+                        STAR
+                    </button>
+                </div>
+
+                <!-- Sección Botón STOP -->
+                <div class="flex flex-col items-center gap-3">
+                    <!-- Foco Rojo -->
+                    <div id="red-light" class="indicator indicator-red-off"></div>
+                    <!-- Botón STOP -->
+                    <button id="btn-stop" onclick="stopProcess()" class="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-black text-xl px-8 py-3 rounded-md shadow-md border-2 border-red-700 transition-all cursor-pointer min-w-[120px] text-center">
+                        STOP
+                    </button>
+                </div>
+
+            </div>
+
+            <div id="data-panel" class="hidden mt-8 pt-8 border-t-2 border-gray-300 fade-in">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    
+                    <!-- Columna de Entradas del Usuario (Frecuencia, Periodo y Presión) -->
+                    <div class="md:col-span-5 flex flex-col gap-4">
+                        
+                        <!-- Casilla Editable FRECUENCIA -->
+                        <div class="flex flex-col">
+                            <label for="input-frecuencia" class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                                FRECUENCIA (Hz) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center bg-white border-2 border-gray-800 rounded focus-within:ring-2 focus-within:ring-green-500 overflow-hidden">
+                                <input type="number" id="input-frecuencia" step="0.1" min="0.1" value="2.5" oninput="calculatePeriodFromFreq()" class="w-full px-3 py-2 font-mono text-lg font-bold text-gray-800 outline-none" placeholder="Ingrese frecuencia">
+                                <span class="text-xs bg-gray-200 text-gray-700 font-semibold px-3 py-3 border-l-2 border-gray-800">Hz</span>
+                            </div>
+                        </div>
+
+                        <!-- Casilla Editable PERIODO -->
+                        <div class="flex flex-col">
+                            <label for="input-periodo" class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                                PERIODO (s) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center bg-white border-2 border-gray-800 rounded focus-within:ring-2 focus-within:ring-green-500 overflow-hidden">
+                                <input type="number" id="input-periodo" step="0.01" min="0.01" value="0.4" oninput="calculateFreqFromPeriod()" class="w-full px-3 py-2 font-mono text-lg font-bold text-gray-800 outline-none" placeholder="Ingrese periodo">
+                                <span class="text-xs bg-gray-200 text-gray-700 font-semibold px-3 py-3 border-l-2 border-gray-800">s</span>
+                            </div>
+                        </div>
+
+                        <!-- Casilla PRESIÓN (Medición calculada/monitoreada) -->
+                        <div class="flex flex-col">
+                            <label for="val-presion" class="text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">PRESIÓN</label>
+                            <div class="flex items-center bg-gray-50 border-2 border-gray-800 rounded px-3 py-2">
+                                <input type="text" id="val-presion" readonly value="32.5 PSI" class="w-full bg-transparent font-mono text-lg font-bold text-gray-800 outline-none">
+                                <span class="text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-1 rounded">PSI</span>
+                            </div>
+                        </div>
+
+                        <!-- Estado del proceso -->
+                        <div class="mt-1 p-3 bg-gray-100 rounded border border-gray-300 flex items-center justify-between">
+                            <span class="text-xs font-semibold text-gray-600">Estado del Sistema:</span>
+                            <span id="status-badge" class="text-xs font-bold text-emerald-600 animate-pulse">GENERANDO SEÑAL</span>
+                        </div>
+
+                    </div>
+
+                    <!-- Columna de la Gráfica Recuadro -->
+                    <div class="md:col-span-7">
+                        <div class="border-2 border-gray-800 rounded-lg p-3 bg-white shadow-inner flex flex-col h-full">
+                            <div class="flex justify-between items-center mb-2 px-1">
+                                <span class="text-xs font-bold text-gray-700 uppercase">Gráfica del Pulso (Ventana 10s)</span>
+                                <span id="timer-display" class="font-mono text-xs text-gray-500">f = 2.5 Hz | T = 0.40s</span>
+                            </div>
+                            <div class="relative w-full h-64">
+                                <canvas id="pulseChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Mensaje en estado apagado/STOP -->
+            <div id="stopped-message" class="mt-8 pt-8 border-t-2 border-gray-200 text-center text-gray-400 py-6">
+                <i class="fa-solid fa-power-off text-3xl mb-2 text-gray-300"></i>
+                <p class="text-sm font-medium">El proceso está detenido. Presiona <strong class="text-green-600">STAR</strong> para ingresar frecuencia/periodo e iniciar la gráfica.</p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+        let animationFrameId = null;
+        let isRunning = false;
+        let startTime = 0;
+
+        // Auto-sincronización entre Frecuencia (f) y Periodo (T = 1/f)
+        function calculatePeriodFromFreq() {
+            const freqInput = document.getElementById('input-frecuencia');
+            const periodInput = document.getElementById('input-periodo');
+            const freq = parseFloat(freqInput.value);
+
+            if (freq > 0) {
+                const period = (1 / freq).toFixed(3);
+                periodInput.value = parseFloat(period);
+            }
+            updateChartConfig();
+        }
+
+        function calculateFreqFromPeriod() {
+            const freqInput = document.getElementById('input-frecuencia');
+            const periodInput = document.getElementById('input-periodo');
+            const period = parseFloat(periodInput.value);
+
+            if (period > 0) {
+                const freq = (1 / period).toFixed(2);
+                freqInput.value = parseFloat(freq);
+            }
+            updateChartConfig();
+        }
+
+        // Inicialización de la gráfica Chart.js
+        function initChart() {
+            const ctx = document.getElementById('pulseChart').getContext('2d');
+            
+            // 100 puntos para representar 10 segundos con precisión
+            const pointsCount = 100;
+            const labels = Array.from({length: pointsCount}, (_, i) => (i * 0.1).toFixed(1) + 's');
+            const initialData = Array(pointsCount).fill(50);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Onda de Pulso',
+                        data: initialData,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false, // Desactivar animación nativa para fluidez custom
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0,0,0,0.08)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Amplitud'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Función cuando el usuario hace clic en STAR
+        function startProcess() {
+            if (isRunning) return;
+            isRunning = true;
+
+            // Cambiar estados de luz
+            const greenLight = document.getElementById('green-light');
+            const redLight = document.getElementById('red-light');
+            
+            greenLight.classList.remove('indicator-green-off');
+            greenLight.classList.add('indicator-green-on');
+
+            redLight.classList.remove('indicator-red-on');
+            redLight.classList.add('indicator-red-off');
+
+            // Mostrar el panel de casillas y gráfica
+            document.getElementById('data-panel').classList.remove('hidden');
+            document.getElementById('stopped-message').classList.add('hidden');
+
+            if (!chartInstance) {
+                initChart();
+            }
+
+            startTime = Date.now();
+            animateChart();
+        }
+
+        // Función cuando el usuario hace clic en STOP
+        function stopProcess() {
+            isRunning = false;
+
+            // Cambiar estados de luz
+            const greenLight = document.getElementById('green-light');
+            const redLight = document.getElementById('red-light');
+
+            greenLight.classList.remove('indicator-green-on');
+            greenLight.classList.add('indicator-green-off');
+
+            redLight.classList.remove('indicator-red-off');
+            redLight.classList.add('indicator-red-on');
+
+            // Detener animación
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            // Ocultar panel
+            document.getElementById('data-panel').classList.add('hidden');
+            document.getElementById('stopped-message').classList.remove('hidden');
+        }
+
+        // Bucle de renderizado continuo calculando la onda con la Frecuencia/Periodo ingresados
+        function animateChart() {
+            if (!isRunning) return;
+
+            const freq = parseFloat(document.getElementById('input-frecuencia').value) || 1;
+            const period = parseFloat(document.getElementById('input-periodo').value) || 1;
+            
+            document.getElementById('timer-display').innerText = `f = ${freq.toFixed(1)} Hz | T = ${period.toFixed(2)}s`;
+
+            // Variación sutil en presión para realismo
+            const mockPressure = (30 + Math.sin(Date.now() / 500) * 3 + Math.random()).toFixed(1);
+            document.getElementById('val-presion').value = `${mockPressure} PSI`;
+
+            const elapsedSec = (Date.now() - startTime) / 1000;
+            const pointsCount = 100;
+            const newData = [];
+
+            // Generar la onda senoidal continua basada en la frecuencia introducida
+            for (let i = 0; i < pointsCount; i++) {
+                const t = elapsedSec + (i * 0.1);
+                // Fórmula de la onda: 50 (centro) + 35 (amplitud) * sin(2 * pi * f * t)
+                const value = 50 + 35 * Math.sin(2 * Math.PI * freq * t);
+                newData.push(value);
+            }
+
+            chartInstance.data.datasets[0].data = newData;
+            chartInstance.update();
+
+            animationFrameId = requestAnimationFrame(animateChart);
+        }
+
+        function updateChartConfig() {
+            if (isRunning) {
+                // Actualiza visualmente los indicadores
+                const freq = parseFloat(document.getElementById('input-frecuencia').value) || 1;
+                const period = parseFloat(document.getElementById('input-periodo').value) || 1;
+                document.getElementById('timer-display').innerText = `f = ${freq.toFixed(1)} Hz | T = ${period.toFixed(2)}s`;
+            }
+        }
+    </script>
+</body>
+</html>
